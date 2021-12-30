@@ -1,0 +1,119 @@
+const (
+	STYLE_LINE* = 1
+	STYLE_SCATTER*
+)
+
+type (
+	Point* = struct {
+		x, y: real
+	}
+
+	Style* = struct {
+		kind: int
+		color: uint32
+		width: real		
+	}
+
+	Series* = struct {
+		points: []Point
+		style: Style
+		reserved: int
+	}
+
+	SeriesImpl = struct {
+		points: ^Point
+		numPoints: int
+		style: Style
+	}
+
+	Grid* = struct {
+		xNumLines, yNumLines: int 
+		color: uint32
+		labelled: bool
+		fontSize: int
+	}		
+
+	Plot* = struct {
+		series: []Series
+		grid: Grid
+	}
+
+	PlotImpl = struct {
+		series: ^SeriesImpl
+		numSeries: int
+		grid: Grid
+	}
+)
+
+fn (s: ^Series) clear*() {
+	s.points = []Point{}
+}
+
+fn (s: ^Series) reserve*(size: int) {
+	s.points = make([]Point, size)
+	s.reserved = size
+}
+
+fn (s: ^Series) trim() {
+	if s.reserved > 0 {
+		s.points = slice(s.points, 0, len(s.points) - s.reserved)
+		s.reserved = 0
+	}
+}
+
+fn (s: ^Series) add*(x, y: real) {
+	if len(s.points) == 0 {
+		s.points = []Point{Point{x, y}}
+	} else if s.reserved > 0 {
+		s.points[len(s.points) - s.reserved] = Point{x, y}
+		s.reserved--
+	} else {
+		s.points = append(s.points, Point{x, y})		
+	}
+}
+
+fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
+	plt := Plot{series: make([]Series, numSeries)}
+
+	const getDefaultColors = fn (numColors: int): []uint32 {
+		basicColors := []uint32{0xFF0000DD, 0xFFDD0000, 0xFF00DD00}
+		colors := make([]uint32, numColors)
+
+		for i := 0; i < numColors; i++ {
+			if i < len(basicColors) {
+				colors[i] = basicColors[i]
+			} else {
+				j := i - len(basicColors)
+				colors[i] = (colors[j] + colors[j + 1]) / 2
+			}
+		}
+
+		return colors		
+	}
+
+	defaultColors := getDefaultColors(numSeries)
+
+	for i := 0; i < numSeries; i++ {
+		plt.series[i].style = Style{kind: kind, color: defaultColors[i], width: 3.0}
+	}
+
+	plt.grid = Grid{xNumLines: 5, yNumLines: 5, color: 0xFF808080, labelled: true, fontSize: 10}
+	return plt
+}
+
+fn umplot_plot(p: ^PlotImpl): int
+
+fn (p: ^Plot) plot*() {
+	seriesImpl := make([]SeriesImpl, len(p.series))
+
+	for i := 0; i < len(p.series); i++ {
+		s := &p.series[i]
+		s.trim()
+		seriesImpl[i] = SeriesImpl{&s.points[0], len(s.points), s.style}		
+	}
+
+	plotImpl := PlotImpl{&seriesImpl[0], len(seriesImpl), p.grid}
+	umplot_plot(&plotImpl)
+}
+
+
