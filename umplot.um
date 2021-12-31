@@ -31,17 +31,25 @@ type (
 		color: uint32
 		labelled: bool
 		fontSize: int
+	}
+
+	Titles* = struct {
+		x, y, graph: str
+		color: uint32
+		fontSize: int
 	}		
 
 	Plot* = struct {
 		series: []Series
 		grid: Grid
+		titles: Titles
 	}
 
 	PlotImpl = struct {
 		series: ^SeriesImpl
 		numSeries: int
 		grid: Grid
+		titles: Titles
 	}
 )
 
@@ -98,6 +106,7 @@ fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
 	}
 
 	plt.grid = Grid{xNumLines: 5, yNumLines: 5, color: 0xFF808080, labelled: true, fontSize: 10}
+	plt.titles = Titles{x: "", y: "", graph: "", color: 0xFF808080, fontSize: 10}
 	return plt
 }
 
@@ -112,7 +121,7 @@ fn (p: ^Plot) plot*() {
 		seriesImpl[i] = SeriesImpl{&s.points[0], len(s.points), s.style}		
 	}
 
-	plotImpl := PlotImpl{&seriesImpl[0], len(seriesImpl), p.grid}
+	plotImpl := PlotImpl{&seriesImpl[0], len(seriesImpl), p.grid, p.titles}
 	umplot_plot(&plotImpl)
 }
 

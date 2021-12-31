@@ -12,5 +12,9 @@ fn main() {
 
     plt.series[1].style.kind = umplot.STYLE_SCATTER
 
+    plt.titles.graph = "UmPlot demo"
+    plt.titles.x = "Time (seconds)"
+    plt.titles.y = "Value"
+
     plt.plot()
 }

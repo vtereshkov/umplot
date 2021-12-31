@@ -45,9 +45,18 @@ typedef struct
 
 typedef struct
 {
+    char *x, *y, *graph;
+    uint32_t color;
+    int64_t fontSize;
+} Titles;
+
+
+typedef struct
+{
     Series *series;
     int64_t numSeries;
     Grid grid;
+    Titles titles;
 } Plot;
 
 
@@ -187,7 +196,7 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 }
 
 
-static void drawGrid(const Plot *plot, const ScreenTransform *transform)
+static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *maxYLabelWidth)
 {
     if (plot->grid.xNumLines <= 0 || plot->grid.yNumLines <= 0)
         return;
@@ -231,6 +240,9 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform)
     }
 
     // Horizontal grid
+    if (maxYLabelWidth)
+        *maxYLabelWidth = 0;
+
     for (int j = 0, y = startPtScreen.y; y > clientRect.y; j++, y = startPtScreen.y + j * yStep * transform->yScale)
     {
         // Line
@@ -245,9 +257,51 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform)
             const int labelX = clientRect.x - labelWidth - plot->grid.fontSize;
             const int labelY = y - plot->grid.fontSize / 2;
 
-            DrawText(label, labelX, labelY, plot->grid.fontSize, *(Color *)&plot->grid.color);           
+            DrawText(label, labelX, labelY, plot->grid.fontSize, *(Color *)&plot->grid.color);
+
+            if (maxYLabelWidth && labelWidth > *maxYLabelWidth)
+                *maxYLabelWidth = labelWidth;                       
         }
     }
+}
+
+
+static void drawTitles(const Plot *plot, const ScreenTransform *transform, int maxYLabelWidth)
+{
+    Rectangle clientRect = getClientRect();
+
+    // Horizontal axis
+    if (plot->titles.x && TextLength(plot->titles.x) > 0)
+    {
+        const int titleWidth = MeasureText(plot->titles.x, plot->titles.fontSize);
+
+        const int titleX = clientRect.x + clientRect.width / 2 - titleWidth / 2;
+        const int titleY = clientRect.y + clientRect.height + 2 * plot->grid.fontSize + plot->titles.fontSize;
+
+        DrawText(plot->titles.x, titleX, titleY, plot->titles.fontSize, *(Color *)&plot->titles.color);
+    }
+
+    // Vertical axis
+    if (plot->titles.y && TextLength(plot->titles.y) > 0)
+    {
+        const int titleWidth = MeasureText(plot->titles.y, plot->titles.fontSize);
+
+        const int titleX = clientRect.x - 2 * plot->grid.fontSize - plot->titles.fontSize - maxYLabelWidth;
+        const int titleY = clientRect.y + clientRect.height / 2 + titleWidth / 2;
+
+        DrawTextPro(GetFontDefault(), plot->titles.y, (Vector2){titleX, titleY}, (Vector2){0, 0}, -90.0, plot->titles.fontSize, 1, *(Color *)&plot->titles.color);
+    }
+
+    // Graph
+    if (plot->titles.graph && TextLength(plot->titles.graph) > 0)
+    {
+        const int titleWidth = MeasureText(plot->titles.graph, plot->titles.fontSize);
+
+        const int titleX = clientRect.x + clientRect.width / 2 - titleWidth / 2;
+        const int titleY = clientRect.y - 2 * plot->titles.fontSize;
+
+        DrawText(plot->titles.graph, titleX, titleY, plot->titles.fontSize, *(Color *)&plot->titles.color);
+    }        
 }
 
 
@@ -275,7 +329,7 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
     SetTraceLogLevel(LOG_ERROR);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(640, 480, "UmPlot");
-    SetTargetFPS(60);
+    SetTargetFPS(30);
 
     Rectangle clientRect = getClientRect();
     Rectangle zoomRect = clientRect;
@@ -327,14 +381,18 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
         BeginDrawing();
         ClearBackground(WHITE);
         
-        // Graph border
+        // Border
         DrawRectangleLinesEx(clientRect, 1, BLACK);
 
         // Grid
-        drawGrid(plot, &transform);
+        int maxYLabelWidth = 0;
+        drawGrid(plot, &transform, &maxYLabelWidth);
 
         // Graph
         drawGraph(plot, &transform);
+
+        // Titles
+        drawTitles(plot, &transform, maxYLabelWidth);
 
         // Zoom rectangle
         if (showZoomRect)
