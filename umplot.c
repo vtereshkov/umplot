@@ -30,6 +30,7 @@ typedef struct
 {
     Point *points;
     int64_t numPoints;
+    char *name;
     Style style;
 } Series;
 
@@ -38,8 +39,8 @@ typedef struct
 {
     int64_t xNumLines, yNumLines;
     uint32_t color;
-    bool labelled;
     int64_t fontSize;
+    bool visible, labelled;
 } Grid;
 
 
@@ -48,7 +49,14 @@ typedef struct
     char *x, *y, *graph;
     uint32_t color;
     int64_t fontSize;
+    bool visible;
 } Titles;
+
+
+typedef struct
+{
+    bool visible;
+} Legend;
 
 
 typedef struct
@@ -57,6 +65,7 @@ typedef struct
     int64_t numSeries;
     Grid grid;
     Titles titles;
+    Legend legend;
 } Plot;
 
 
@@ -67,10 +76,52 @@ typedef struct
 } ScreenTransform;
 
 
-static Rectangle getClientRect()
+static Rectangle getClientRectWithLegend()
 {
     const int width = GetScreenWidth(), height = GetScreenHeight();
     return (Rectangle){0.15 * width, 0.05 * height, 0.8 * width, 0.8 * height};
+}
+
+
+static Rectangle getLegendRect(const Plot *plot)
+{
+    const int dashLength = 20, margin = 20;
+    Rectangle legendRect = {0};
+
+    if (!plot->legend.visible)
+        return legendRect;
+
+    for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
+    {
+        const int labelWidth = MeasureText(plot->series[iSeries].name, plot->grid.fontSize);
+        if (labelWidth > legendRect.width)
+            legendRect.width = labelWidth;
+    }
+    
+    legendRect.width += dashLength + 2 * margin;
+
+    const Rectangle clientRectWithLegend = getClientRectWithLegend();
+
+    if (legendRect.width > clientRectWithLegend.width / 2)
+        legendRect.width = clientRectWithLegend.width / 2;
+
+    legendRect.height = clientRectWithLegend.height;
+    legendRect.x = clientRectWithLegend.x + clientRectWithLegend.width - legendRect.width;
+    legendRect.y = clientRectWithLegend.y;
+
+    return legendRect;
+}
+
+
+static Rectangle getClientRect(const Plot *plot)
+{
+    const Rectangle clientRectWithLegend = getClientRectWithLegend();
+    const Rectangle legendRect = getLegendRect(plot);
+
+    Rectangle clientRect = clientRectWithLegend;
+    clientRect.width -= legendRect.width;
+
+    return clientRect;
 }
 
 
@@ -86,9 +137,9 @@ static Point getGraphPoint(const Vector2 point, const ScreenTransform *transform
 }
 
 
-static void setTransformToMinMax(ScreenTransform *transform, const Point *minPt, const Point *maxPt)
+static void setTransformToMinMax(const Plot *plot, ScreenTransform *transform, const Point *minPt, const Point *maxPt)
 {
-    Rectangle rect = getClientRect();
+    Rectangle rect = getClientRect(plot);
 
     transform->xScale = (maxPt->x > minPt->x) ?  (rect.width  / (maxPt->x - minPt->x)) : 1.0;
     transform->yScale = (maxPt->y > minPt->y) ? -(rect.height / (maxPt->y - minPt->y)) : 1.0; 
@@ -98,7 +149,7 @@ static void setTransformToMinMax(ScreenTransform *transform, const Point *minPt,
 }
 
 
-static void resetTransform(ScreenTransform *transform, const Plot *plot)
+static void resetTransform(const Plot *plot, ScreenTransform *transform)
 {
     Point minPt = (Point){ DBL_MAX,  DBL_MAX};
     Point maxPt = (Point){-DBL_MAX, -DBL_MAX};
@@ -116,50 +167,49 @@ static void resetTransform(ScreenTransform *transform, const Plot *plot)
         }
     }
 
-    setTransformToMinMax(transform, &minPt, &maxPt);
+    setTransformToMinMax(plot, transform, &minPt, &maxPt);
 }
 
 
-static void resizeTransform(ScreenTransform *transform, const Rectangle *rect)
+static void resizeTransform(const Plot *plot, ScreenTransform *transform, const Rectangle *rect)
 {
     const Point minPt = getGraphPoint((Vector2){rect->x, rect->y + rect->height}, transform);
     const Point maxPt = getGraphPoint((Vector2){rect->x + rect->width, rect->y}, transform);
 
-    setTransformToMinMax(transform, &minPt, &maxPt);
+    setTransformToMinMax(plot, transform, &minPt, &maxPt);
 }
 
 
-static void panTransform(ScreenTransform *transform, const Vector2 *delta)
+static void panTransform(const Plot *plot, ScreenTransform *transform, const Vector2 *delta)
 {
     transform->dx -= delta->x / transform->xScale;
     transform->dy -= delta->y / transform->yScale;
 }
 
 
-static void zoomTransform(ScreenTransform *transform, const Plot *plot, const Rectangle *zoomRect)
+static void zoomTransform(const Plot *plot, ScreenTransform *transform, const Rectangle *zoomRect)
 {
     if (zoomRect->width == 0 && zoomRect->height == 0)
         return;
 
     if (zoomRect->width < 0 || zoomRect->height < 0)
     {
-        resetTransform(transform, plot);
+        resetTransform(plot, transform);
         return;
     }
 
-    resizeTransform(transform, zoomRect);
+    resizeTransform(plot, transform, zoomRect);
 }
 
 
 static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 {
-    Rectangle clientRect = getClientRect();
+    Rectangle clientRect = getClientRect(plot);
     BeginScissorMode(clientRect.x, clientRect.y, clientRect.width, clientRect.height);
 
     for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
     {
         Series *series = &plot->series[iSeries];
-
         switch (series->style.kind)
         {
             case STYLE_LINE:
@@ -198,10 +248,13 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 
 static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *maxYLabelWidth)
 {
+    if (maxYLabelWidth)
+        *maxYLabelWidth = 0;
+
     if (plot->grid.xNumLines <= 0 || plot->grid.yNumLines <= 0)
         return;
 
-    const Rectangle clientRect = getClientRect();
+    const Rectangle clientRect = getClientRect(plot);
 
     const double xSpan =  clientRect.width  / transform->xScale;
     const double ySpan = -clientRect.height / transform->yScale;
@@ -224,7 +277,8 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *ma
     for (int i = 0, x = startPtScreen.x; x < clientRect.x + clientRect.width; i++, x = startPtScreen.x + i * xStep * transform->xScale)
     {
         // Line
-        DrawLineEx((Vector2){x, clientRect.y}, (Vector2){x, clientRect.y + clientRect.height}, 1, *(Color *)&plot->grid.color);
+        if (plot->grid.visible)
+            DrawLineEx((Vector2){x, clientRect.y}, (Vector2){x, clientRect.y + clientRect.height}, 1, *(Color *)&plot->grid.color);
 
         // Label
         if (plot->grid.labelled)
@@ -240,13 +294,11 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *ma
     }
 
     // Horizontal grid
-    if (maxYLabelWidth)
-        *maxYLabelWidth = 0;
-
     for (int j = 0, y = startPtScreen.y; y > clientRect.y; j++, y = startPtScreen.y + j * yStep * transform->yScale)
     {
         // Line
-        DrawLineEx((Vector2){clientRect.x, y}, (Vector2){clientRect.x + clientRect.width, y}, 1, *(Color *)&plot->grid.color);
+        if (plot->grid.visible)
+            DrawLineEx((Vector2){clientRect.x, y}, (Vector2){clientRect.x + clientRect.width, y}, 1, *(Color *)&plot->grid.color);
 
         // Label
         if (plot->grid.labelled)
@@ -268,7 +320,10 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *ma
 
 static void drawTitles(const Plot *plot, const ScreenTransform *transform, int maxYLabelWidth)
 {
-    Rectangle clientRect = getClientRect();
+    if (!plot->titles.visible)
+        return;
+
+    Rectangle clientRect = getClientRect(plot);
 
     // Horizontal axis
     if (plot->titles.x && TextLength(plot->titles.x) > 0)
@@ -305,6 +360,52 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, int m
 }
 
 
+static void drawLegend(const Plot *plot)
+{
+    if (!plot->legend.visible)
+        return;    
+
+    const int dashLength = 20, margin = 20;
+
+    const Rectangle legendRect = getLegendRect(plot);
+
+    for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
+    {
+        Series *series = &plot->series[iSeries];
+        
+        // Legend mark
+        switch (series->style.kind)
+        {
+            case STYLE_LINE:
+            {
+                Vector2 dashPt1 = (Vector2){legendRect.x + margin, legendRect.y + plot->grid.fontSize / 2 + iSeries * (plot->grid.fontSize + margin)};
+                Vector2 dashPt2 = dashPt1;
+                dashPt2.x += dashLength;
+
+                DrawLineEx(dashPt1, dashPt2, series->style.width, *(Color *)&series->style.color);
+                break;
+            }
+
+            case STYLE_SCATTER:
+            {
+                Vector2 pt = (Vector2){legendRect.x + margin + dashLength / 2, legendRect.y + plot->grid.fontSize / 2 + iSeries * (plot->grid.fontSize + margin)};
+
+                DrawCircleV(pt, series->style.width, *(Color *)&series->style.color);
+                break;
+            }
+
+            default: break;
+        }
+
+        // Legend text
+        const int labelX = legendRect.x + dashLength + 2 * margin;
+        const int labelY = legendRect.y + iSeries * (plot->grid.fontSize + margin);
+
+        DrawText(series->name, labelX, labelY, plot->grid.fontSize, *(Color *)&plot->grid.color); 
+    }
+}
+
+
 static void drawZoomRect(Rectangle zoomRect, const ScreenTransform *transform)
 {
     if (zoomRect.width < 0)
@@ -331,12 +432,12 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
     InitWindow(640, 480, "UmPlot");
     SetTargetFPS(30);
 
-    Rectangle clientRect = getClientRect();
+    Rectangle clientRect = getClientRect(plot);
     Rectangle zoomRect = clientRect;
     bool showZoomRect = false;
     
     ScreenTransform transform;
-    resetTransform(&transform, plot);    
+    resetTransform(plot, &transform);    
 
     while (!WindowShouldClose())
     {
@@ -347,8 +448,8 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
         // Resizing
         if (IsWindowResized())
         {
-            resizeTransform(&transform, &clientRect);
-            clientRect = zoomRect = getClientRect();
+            resizeTransform(plot, &transform, &clientRect);
+            clientRect = zoomRect = getClientRect(plot);
         }
 
         // Zooming
@@ -366,15 +467,15 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))  
         {            
-            zoomTransform(&transform, plot, &zoomRect);
-            zoomRect = getClientRect();
+            zoomTransform(plot, &transform, &zoomRect);
+            zoomRect = getClientRect(plot);
             showZoomRect = false;
         }        
 
         // Panning
         if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && CheckCollisionPointRec(pos, clientRect))  
         {    
-            panTransform(&transform, &delta);
+            panTransform(plot, &transform, &delta);
         }            
 
         // Draw
@@ -393,6 +494,9 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 
         // Titles
         drawTitles(plot, &transform, maxYLabelWidth);
+
+        // Legend
+        drawLegend(plot);
 
         // Zoom rectangle
         if (showZoomRect)
