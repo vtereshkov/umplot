@@ -115,7 +115,7 @@ fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
         plt.series[i].style = Style{kind: kind, color: defaultColors[i], width: 3.0}
     }
 
-    plt.grid = Grid{xNumLines: 5, yNumLines: 5, color: 0xFF808080, fontSize: 10, visible: true, labelled: true}
+    plt.grid = Grid{xNumLines: 5, yNumLines: 5, color: 0xFF505050, fontSize: 12, visible: true, labelled: true}
     plt.titles = Titles{x: "", y: "", graph: "", color: plt.grid.color, fontSize: plt.grid.fontSize, visible: true}
     plt.legend = Legend{visible: true}
 

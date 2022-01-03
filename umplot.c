@@ -246,7 +246,7 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 }
 
 
-static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *maxYLabelWidth)
+static void drawGrid(const Plot *plot, const ScreenTransform *transform, const Font *font, int *maxYLabelWidth)
 {
     if (maxYLabelWidth)
         *maxYLabelWidth = 0;
@@ -289,7 +289,7 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *ma
             const int labelX = x - labelWidth / 2;
             const int labelY = clientRect.y + clientRect.height + plot->grid.fontSize;
 
-            DrawText(label, labelX, labelY, plot->grid.fontSize, *(Color *)&plot->grid.color);            
+            DrawTextEx(*font, label, (Vector2){labelX, labelY}, plot->grid.fontSize, 1, *(Color *)&plot->grid.color);            
         }
     }
 
@@ -309,7 +309,7 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *ma
             const int labelX = clientRect.x - labelWidth - plot->grid.fontSize;
             const int labelY = y - plot->grid.fontSize / 2;
 
-            DrawText(label, labelX, labelY, plot->grid.fontSize, *(Color *)&plot->grid.color);
+            DrawTextEx(*font, label, (Vector2){labelX, labelY}, plot->grid.fontSize, 1, *(Color *)&plot->grid.color);
 
             if (maxYLabelWidth && labelWidth > *maxYLabelWidth)
                 *maxYLabelWidth = labelWidth;                       
@@ -318,7 +318,7 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, int *ma
 }
 
 
-static void drawTitles(const Plot *plot, const ScreenTransform *transform, int maxYLabelWidth)
+static void drawTitles(const Plot *plot, const ScreenTransform *transform, const Font *font, int maxYLabelWidth)
 {
     if (!plot->titles.visible)
         return;
@@ -333,7 +333,7 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, int m
         const int titleX = clientRect.x + clientRect.width / 2 - titleWidth / 2;
         const int titleY = clientRect.y + clientRect.height + 2 * plot->grid.fontSize + plot->titles.fontSize;
 
-        DrawText(plot->titles.x, titleX, titleY, plot->titles.fontSize, *(Color *)&plot->titles.color);
+        DrawTextEx(*font, plot->titles.x, (Vector2){titleX, titleY}, plot->titles.fontSize, 1, *(Color *)&plot->titles.color);
     }
 
     // Vertical axis
@@ -344,7 +344,7 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, int m
         const int titleX = clientRect.x - 2 * plot->grid.fontSize - plot->titles.fontSize - maxYLabelWidth;
         const int titleY = clientRect.y + clientRect.height / 2 + titleWidth / 2;
 
-        DrawTextPro(GetFontDefault(), plot->titles.y, (Vector2){titleX, titleY}, (Vector2){0, 0}, -90.0, plot->titles.fontSize, 1, *(Color *)&plot->titles.color);
+        DrawTextPro(*font, plot->titles.y, (Vector2){titleX, titleY}, (Vector2){0, 0}, -90.0, plot->titles.fontSize, 1, *(Color *)&plot->titles.color);
     }
 
     // Graph
@@ -355,12 +355,12 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, int m
         const int titleX = clientRect.x + clientRect.width / 2 - titleWidth / 2;
         const int titleY = clientRect.y - 2 * plot->titles.fontSize;
 
-        DrawText(plot->titles.graph, titleX, titleY, plot->titles.fontSize, *(Color *)&plot->titles.color);
+        DrawTextEx(*font, plot->titles.graph, (Vector2){titleX, titleY}, plot->titles.fontSize, 1, *(Color *)&plot->titles.color);
     }        
 }
 
 
-static void drawLegend(const Plot *plot)
+static void drawLegend(const Plot *plot, const Font *font)
 {
     if (!plot->legend.visible)
         return;    
@@ -401,7 +401,8 @@ static void drawLegend(const Plot *plot)
         const int labelX = legendRect.x + dashLength + 2 * margin;
         const int labelY = legendRect.y + iSeries * (plot->grid.fontSize + margin);
 
-        DrawText(series->name, labelX, labelY, plot->grid.fontSize, *(Color *)&plot->grid.color); 
+        DrawTextEx(*font, series->name, (Vector2){labelX, labelY}, plot->grid.fontSize, 1, *(Color *)&plot->grid.color);  
+
     }
 }
 
@@ -429,8 +430,12 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 
     SetTraceLogLevel(LOG_ERROR);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(640, 480, "UmPlot");
+    InitWindow(800, 600, "UmPlot");
     SetTargetFPS(30);
+
+    const char *fontName = "liberation.ttf";
+    Font gridFont = LoadFontEx(fontName, plot->grid.fontSize, NULL, 256);
+    Font titlesFont = LoadFontEx(fontName, plot->titles.fontSize, NULL, 256);
 
     Rectangle clientRect = getClientRect(plot);
     Rectangle zoomRect = clientRect;
@@ -487,16 +492,16 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 
         // Grid
         int maxYLabelWidth = 0;
-        drawGrid(plot, &transform, &maxYLabelWidth);
+        drawGrid(plot, &transform, &gridFont, &maxYLabelWidth);
 
         // Graph
         drawGraph(plot, &transform);
 
         // Titles
-        drawTitles(plot, &transform, maxYLabelWidth);
+        drawTitles(plot, &transform, &titlesFont, maxYLabelWidth);
 
         // Legend
-        drawLegend(plot);
+        drawLegend(plot, &gridFont);
 
         // Zoom rectangle
         if (showZoomRect)
