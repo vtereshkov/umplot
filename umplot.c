@@ -433,7 +433,7 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
     InitWindow(800, 600, "UmPlot");
     SetTargetFPS(30);
 
-    const char *fontName = "liberation.ttf";
+    const char *fontName = "./liberation.ttf";
     Font gridFont = LoadFontEx(fontName, plot->grid.fontSize, NULL, 256);
     Font titlesFont = LoadFontEx(fontName, plot->titles.fontSize, NULL, 256);
 
