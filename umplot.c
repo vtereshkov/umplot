@@ -284,7 +284,7 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, const F
         if (plot->grid.labelled)
         {
             const char *label = TextFormat((xStep > 0.01) ? "%.2f" : "%.4f", startPt.x + i * xStep);
-            const int labelWidth = MeasureText(label, plot->grid.fontSize);
+            const int labelWidth = MeasureTextEx(*font, label, plot->grid.fontSize, 1).x;
 
             const int labelX = x - labelWidth / 2;
             const int labelY = clientRect.y + clientRect.height + plot->grid.fontSize;
@@ -304,7 +304,7 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, const F
         if (plot->grid.labelled)
         {
             const char *label = TextFormat((yStep > 0.01) ? "%.2f" : "%.4f", startPt.y + j * yStep);
-            const int labelWidth = MeasureText(label, plot->grid.fontSize);
+            const int labelWidth = MeasureTextEx(*font, label, plot->grid.fontSize, 1).x;
 
             const int labelX = clientRect.x - labelWidth - plot->grid.fontSize;
             const int labelY = y - plot->grid.fontSize / 2;
@@ -328,7 +328,7 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, const
     // Horizontal axis
     if (plot->titles.x && TextLength(plot->titles.x) > 0)
     {
-        const int titleWidth = MeasureText(plot->titles.x, plot->titles.fontSize);
+        const int titleWidth = MeasureTextEx(*font, plot->titles.x, plot->titles.fontSize, 1).x;
 
         const int titleX = clientRect.x + clientRect.width / 2 - titleWidth / 2;
         const int titleY = clientRect.y + clientRect.height + 2 * plot->grid.fontSize + plot->titles.fontSize;
@@ -339,7 +339,7 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, const
     // Vertical axis
     if (plot->titles.y && TextLength(plot->titles.y) > 0)
     {
-        const int titleWidth = MeasureText(plot->titles.y, plot->titles.fontSize);
+        const int titleWidth = MeasureTextEx(*font, plot->titles.y, plot->titles.fontSize, 1).x;
 
         const int titleX = clientRect.x - 2 * plot->grid.fontSize - plot->titles.fontSize - maxYLabelWidth;
         const int titleY = clientRect.y + clientRect.height / 2 + titleWidth / 2;
@@ -350,7 +350,7 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, const
     // Graph
     if (plot->titles.graph && TextLength(plot->titles.graph) > 0)
     {
-        const int titleWidth = MeasureText(plot->titles.graph, plot->titles.fontSize);
+        const int titleWidth = MeasureTextEx(*font, plot->titles.graph, plot->titles.fontSize, 1).x;
 
         const int titleX = clientRect.x + clientRect.width / 2 - titleWidth / 2;
         const int titleY = clientRect.y - 2 * plot->titles.fontSize;
