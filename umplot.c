@@ -3,6 +3,7 @@
 
 #include "raylib.h"
 #include "umka_api.h"
+#include "font.h"
 
 
 enum
@@ -433,9 +434,8 @@ void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
     InitWindow(800, 600, "UmPlot");
     SetTargetFPS(30);
 
-    const char *fontName = "./liberation.ttf";
-    Font gridFont = LoadFontEx(fontName, plot->grid.fontSize, NULL, 256);
-    Font titlesFont = LoadFontEx(fontName, plot->titles.fontSize, NULL, 256);
+    Font gridFont = LoadFontFromMemory(".ttf", liberationFont, sizeof(liberationFont), plot->grid.fontSize, NULL, 256);
+    Font titlesFont = LoadFontFromMemory(".ttf", liberationFont, sizeof(liberationFont), plot->titles.fontSize, NULL, 256);
 
     Rectangle clientRect = getClientRect(plot);
     Rectangle zoomRect = clientRect;
