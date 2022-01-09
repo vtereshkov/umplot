@@ -30,10 +30,10 @@ typedef struct
 
 typedef struct
 {
-    Point *points;
-    int64_t numPoints;
+    UmkaDynArray(Point) points;
     char *name;
     Style style;
+    int64_t reserved;
 } Series;
 
 
@@ -63,8 +63,7 @@ typedef struct
 
 typedef struct
 {
-    Series *series;
-    int64_t numSeries;
+    UmkaDynArray(Series) series;
     Grid grid;
     Titles titles;
     Legend legend;
@@ -93,9 +92,9 @@ static Rectangle getLegendRect(const Plot *plot)
     if (!plot->legend.visible)
         return legendRect;
 
-    for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
+    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
     {
-        const int labelWidth = MeasureText(plot->series[iSeries].name, plot->grid.fontSize);
+        const int labelWidth = MeasureText(plot->series.data[iSeries].name, plot->grid.fontSize);
         if (labelWidth > legendRect.width)
             legendRect.width = labelWidth;
     }
@@ -156,12 +155,12 @@ static void resetTransform(const Plot *plot, ScreenTransform *transform)
     Point minPt = (Point){ DBL_MAX,  DBL_MAX};
     Point maxPt = (Point){-DBL_MAX, -DBL_MAX};
 
-    for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
+    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
     {
-        Series *series = &plot->series[iSeries];
-        for (int iPt = 0; iPt < series->numPoints; iPt++)
+        Series *series = &plot->series.data[iSeries];
+        for (int iPt = 0; iPt < series->points.len; iPt++)
         {
-            const Point *pt = &series->points[iPt];
+            const Point *pt = &series->points.data[iPt];
             if (pt->x > maxPt.x)  maxPt.x = pt->x;
             if (pt->x < minPt.x)  minPt.x = pt->x;
             if (pt->y > maxPt.y)  maxPt.y = pt->y;
@@ -209,20 +208,20 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
     Rectangle clientRect = getClientRect(plot);
     BeginScissorMode(clientRect.x, clientRect.y, clientRect.width, clientRect.height);
 
-    for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
+    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
     {
-        Series *series = &plot->series[iSeries];
+        Series *series = &plot->series.data[iSeries];
         switch (series->style.kind)
         {
             case STYLE_LINE:
             {
-                if (series->numPoints > 1)
+                if (series->points.len > 1)
                 {
-                    Vector2 prevPt = getScreenPoint(series->points[0], transform);                
+                    Vector2 prevPt = getScreenPoint(series->points.data[0], transform);                
                     
-                    for (int iPt = 1; iPt < series->numPoints; iPt++)
+                    for (int iPt = 1; iPt < series->points.len; iPt++)
                     {
-                        Vector2 pt = getScreenPoint(series->points[iPt], transform); 
+                        Vector2 pt = getScreenPoint(series->points.data[iPt], transform); 
                         DrawLineEx(prevPt, pt, series->style.width, *(Color *)&series->style.color);
                         prevPt = pt;
                     }
@@ -232,9 +231,9 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 
             case STYLE_SCATTER:
             {
-                for (int iPt = 0; iPt < series->numPoints; iPt++)
+                for (int iPt = 0; iPt < series->points.len; iPt++)
                 {
-                    Vector2 pt = getScreenPoint(series->points[iPt], transform); 
+                    Vector2 pt = getScreenPoint(series->points.data[iPt], transform); 
                     DrawCircleV(pt, series->style.width, *(Color *)&series->style.color);
                 }
                 break;
@@ -371,9 +370,9 @@ static void drawLegend(const Plot *plot, const Font *font)
 
     const Rectangle legendRect = getLegendRect(plot);
 
-    for (int iSeries = 0; iSeries < plot->numSeries; iSeries++)
+    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
     {
-        Series *series = &plot->series[iSeries];
+        Series *series = &plot->series.data[iSeries];
         
         // Legend mark
         switch (series->style.kind)

@@ -21,13 +21,6 @@ type (
         reserved: int
     }
 
-    SeriesImpl = struct {
-        points: ^Point
-        numPoints: int
-        name: str
-        style: Style
-    }
-
     Grid* = struct {
         xNumLines, yNumLines: int 
         color: uint32
@@ -48,14 +41,6 @@ type (
 
     Plot* = struct {
         series: []Series
-        grid: Grid
-        titles: Titles
-        legend: Legend
-    }
-
-    PlotImpl = struct {
-        series: ^SeriesImpl
-        numSeries: int
         grid: Grid
         titles: Titles
         legend: Legend
@@ -122,19 +107,14 @@ fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
     return plt
 }
 
-fn umplot_plot(p: ^PlotImpl): int
+fn umplot_plot(p: ^Plot): int
 
 fn (p: ^Plot) plot*() {
-    seriesImpl := make([]SeriesImpl, len(p.series))
-
     for i := 0; i < len(p.series); i++ {
-        s := &p.series[i]
-        s.trim()
-        seriesImpl[i] = SeriesImpl{&s.points[0], len(s.points), s.name, s.style}        
+        p.series[i].trim()      
     }
 
-    plotImpl := PlotImpl{&seriesImpl[0], len(seriesImpl), p.grid, p.titles, p.legend}
-    umplot_plot(&plotImpl)
+    umplot_plot(p)
 }
 
 
