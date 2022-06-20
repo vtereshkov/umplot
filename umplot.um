@@ -16,9 +16,9 @@ type (
 
     Series* = struct {
         points: []Point
+        actLen: int
         name: str
         style: Style
-        reserved: int
     }
 
     Grid* = struct {
@@ -48,30 +48,25 @@ type (
 )
 
 fn (s: ^Series) clear*() {
-    s.points = []Point{}
-}
-
-fn (s: ^Series) reserve*(size: int) {
-    s.points = make([]Point, size)
-    s.reserved = size
+    s.points = make([]Point, 256)
+    s.actLen = 0
 }
 
 fn (s: ^Series) trim() {
-    if s.reserved > 0 {
-        s.points = slice(s.points, 0, len(s.points) - s.reserved)
-        s.reserved = 0
+    if s.actLen < len(s.points) {
+        s.points = slice(s.points, 0, s.actLen)
     }
 }
 
 fn (s: ^Series) add*(x, y: real) {
     if len(s.points) == 0 {
-        s.points = []Point{Point{x, y}}
-    } else if s.reserved > 0 {
-        s.points[len(s.points) - s.reserved] = Point{x, y}
-        s.reserved--
-    } else {
-        s.points = append(s.points, Point{x, y})        
+        s.clear()
     }
+    if s.actLen >= len(s.points) {    
+        s.points = append(s.points, make([]Point, len(s.points)))
+    }
+    s.points[s.actLen] = Point{x, y}
+    s.actLen++
 }
 
 fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {

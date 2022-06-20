@@ -31,9 +31,9 @@ typedef struct
 typedef struct
 {
     UmkaDynArray(Point) points;
+    int64_t actLen;
     char *name;
     Style style;
-    int64_t reserved;
 } Series;
 
 
