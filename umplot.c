@@ -31,7 +31,6 @@ typedef struct
 typedef struct
 {
     UmkaDynArray(Point) points;
-    int64_t actLen;
     char *name;
     Style style;
 } Series;
@@ -92,7 +91,7 @@ static Rectangle getLegendRect(const Plot *plot)
     if (!plot->legend.visible)
         return legendRect;
 
-    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
+    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         const int labelWidth = MeasureText(plot->series.data[iSeries].name, plot->grid.fontSize);
         if (labelWidth > legendRect.width)
@@ -155,10 +154,10 @@ static void resetTransform(const Plot *plot, ScreenTransform *transform)
     Point minPt = (Point){ DBL_MAX,  DBL_MAX};
     Point maxPt = (Point){-DBL_MAX, -DBL_MAX};
 
-    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
+    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         Series *series = &plot->series.data[iSeries];
-        for (int iPt = 0; iPt < series->points.len; iPt++)
+        for (int iPt = 0; iPt < umkaGetDynArrayLen(&series->points); iPt++)
         {
             const Point *pt = &series->points.data[iPt];
             if (pt->x > maxPt.x)  maxPt.x = pt->x;
@@ -208,18 +207,18 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
     Rectangle clientRect = getClientRect(plot);
     BeginScissorMode(clientRect.x, clientRect.y, clientRect.width, clientRect.height);
 
-    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
+    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         Series *series = &plot->series.data[iSeries];
         switch (series->style.kind)
         {
             case STYLE_LINE:
             {
-                if (series->points.len > 1)
+                if (umkaGetDynArrayLen(&series->points) > 1)
                 {
                     Vector2 prevPt = getScreenPoint(series->points.data[0], transform);                
                     
-                    for (int iPt = 1; iPt < series->points.len; iPt++)
+                    for (int iPt = 1; iPt < umkaGetDynArrayLen(&series->points); iPt++)
                     {
                         Vector2 pt = getScreenPoint(series->points.data[iPt], transform); 
                         DrawLineEx(prevPt, pt, series->style.width, *(Color *)&series->style.color);
@@ -231,7 +230,7 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 
             case STYLE_SCATTER:
             {
-                for (int iPt = 0; iPt < series->points.len; iPt++)
+                for (int iPt = 0; iPt < umkaGetDynArrayLen(&series->points); iPt++)
                 {
                     Vector2 pt = getScreenPoint(series->points.data[iPt], transform); 
                     DrawCircleV(pt, series->style.width, *(Color *)&series->style.color);
@@ -370,7 +369,7 @@ static void drawLegend(const Plot *plot, const Font *font)
 
     const Rectangle legendRect = getLegendRect(plot);
 
-    for (int iSeries = 0; iSeries < plot->series.len; iSeries++)
+    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         Series *series = &plot->series.data[iSeries];
         

@@ -16,7 +16,6 @@ type (
 
     Series* = struct {
         points: []Point
-        actLen: int
         name: str
         style: Style
     }
@@ -48,25 +47,14 @@ type (
 )
 
 fn (s: ^Series) clear*() {
-    s.points = make([]Point, 256)
-    s.actLen = 0
-}
-
-fn (s: ^Series) trim() {
-    if s.actLen < len(s.points) {
-        s.points = slice(s.points, 0, s.actLen)
-    }
+    s.points = []Point{}
 }
 
 fn (s: ^Series) add*(x, y: real) {
-    if len(s.points) == 0 {
+    if !valid(s.points) {
         s.clear()
     }
-    if s.actLen >= len(s.points) {    
-        s.points = append(s.points, make([]Point, len(s.points)))
-    }
-    s.points[s.actLen] = Point{x, y}
-    s.actLen++
+    s.points = append(s.points, Point{x, y})
 }
 
 fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
@@ -105,10 +93,6 @@ fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
 fn umplot_plot(p: ^Plot): int
 
 fn (p: ^Plot) plot*() {
-    for i := 0; i < len(p.series); i++ {
-        p.series[i].trim()      
-    }
-
     umplot_plot(p)
 }
 
