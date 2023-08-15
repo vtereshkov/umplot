@@ -7,6 +7,13 @@
 #include "font.h"
 
 
+#ifdef _WIN32
+    #define UMPLOT_API __declspec(dllexport)
+#else
+    #define UMPLOT_API __attribute__((visibility("default")))
+#endif
+
+
 enum
 {
     STYLE_LINE = 1,
@@ -424,7 +431,7 @@ static void drawZoomRect(Rectangle zoomRect, const ScreenTransform *transform)
 }
 
 
-void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
+UMPLOT_API void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 {
     Plot *plot = (Plot *) params[0].ptrVal;
 

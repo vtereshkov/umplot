@@ -4,7 +4,7 @@ fn main() {
     plt := umplot.init(4)
 
     for i := 0; i < 4; i++ {
-        plt.series[i].name = "Sine wave " + repr(i + 1)
+        plt.series[i].name = sprintf("Sine wave %d", i + 1)
 
         for x := 0.0; x <= 100.0; x += 1.0 {
             y := (1 + 0.5 * i) * sin(x / 10.0 + i)

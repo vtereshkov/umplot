@@ -51,9 +51,6 @@ fn (s: ^Series) clear*() {
 }
 
 fn (s: ^Series) add*(x, y: real) {
-    if !valid(s.points) {
-        s.clear()
-    }
     s.points = append(s.points, Point{x, y})
 }
 
