@@ -90,7 +90,7 @@ static Rectangle getClientRectWithLegend()
 }
 
 
-static Rectangle getLegendRect(const Plot *plot)
+static Rectangle getLegendRect(const Plot *plot, UmkaAPI *api)
 {
     const int dashLength = 20, margin = 20;
     Rectangle legendRect = {0};
@@ -98,7 +98,7 @@ static Rectangle getLegendRect(const Plot *plot)
     if (!plot->legend.visible)
         return legendRect;
 
-    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
+    for (int iSeries = 0; iSeries < api->umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         const int labelWidth = MeasureText(plot->series.data[iSeries].name, plot->grid.fontSize);
         if (labelWidth > legendRect.width)
@@ -120,10 +120,10 @@ static Rectangle getLegendRect(const Plot *plot)
 }
 
 
-static Rectangle getClientRect(const Plot *plot)
+static Rectangle getClientRect(const Plot *plot, UmkaAPI *api)
 {
     const Rectangle clientRectWithLegend = getClientRectWithLegend();
-    const Rectangle legendRect = getLegendRect(plot);
+    const Rectangle legendRect = getLegendRect(plot, api);
 
     Rectangle clientRect = clientRectWithLegend;
     clientRect.width -= legendRect.width;
@@ -144,9 +144,9 @@ static Point getGraphPoint(const Vector2 point, const ScreenTransform *transform
 }
 
 
-static void setTransformToMinMax(const Plot *plot, ScreenTransform *transform, const Point *minPt, const Point *maxPt)
+static void setTransformToMinMax(const Plot *plot, ScreenTransform *transform, const Point *minPt, const Point *maxPt, UmkaAPI *api)
 {
-    Rectangle rect = getClientRect(plot);
+    Rectangle rect = getClientRect(plot, api);
 
     transform->xScale = (maxPt->x > minPt->x) ?  (rect.width  / (maxPt->x - minPt->x)) : 1.0;
     transform->yScale = (maxPt->y > minPt->y) ? -(rect.height / (maxPt->y - minPt->y)) : 1.0; 
@@ -156,15 +156,15 @@ static void setTransformToMinMax(const Plot *plot, ScreenTransform *transform, c
 }
 
 
-static void resetTransform(const Plot *plot, ScreenTransform *transform)
+static void resetTransform(const Plot *plot, ScreenTransform *transform, UmkaAPI *api)
 {
     Point minPt = (Point){ DBL_MAX,  DBL_MAX};
     Point maxPt = (Point){-DBL_MAX, -DBL_MAX};
 
-    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
+    for (int iSeries = 0; iSeries < api->umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         Series *series = &plot->series.data[iSeries];
-        for (int iPt = 0; iPt < umkaGetDynArrayLen(&series->points); iPt++)
+        for (int iPt = 0; iPt < api->umkaGetDynArrayLen(&series->points); iPt++)
         {
             const Point *pt = &series->points.data[iPt];
             if (pt->x > maxPt.x)  maxPt.x = pt->x;
@@ -174,16 +174,16 @@ static void resetTransform(const Plot *plot, ScreenTransform *transform)
         }
     }
 
-    setTransformToMinMax(plot, transform, &minPt, &maxPt);
+    setTransformToMinMax(plot, transform, &minPt, &maxPt, api);
 }
 
 
-static void resizeTransform(const Plot *plot, ScreenTransform *transform, const Rectangle *rect)
+static void resizeTransform(const Plot *plot, ScreenTransform *transform, const Rectangle *rect, UmkaAPI *api)
 {
     const Point minPt = getGraphPoint((Vector2){rect->x, rect->y + rect->height}, transform);
     const Point maxPt = getGraphPoint((Vector2){rect->x + rect->width, rect->y}, transform);
 
-    setTransformToMinMax(plot, transform, &minPt, &maxPt);
+    setTransformToMinMax(plot, transform, &minPt, &maxPt, api);
 }
 
 
@@ -194,38 +194,38 @@ static void panTransform(const Plot *plot, ScreenTransform *transform, const Vec
 }
 
 
-static void zoomTransform(const Plot *plot, ScreenTransform *transform, const Rectangle *zoomRect)
+static void zoomTransform(const Plot *plot, ScreenTransform *transform, const Rectangle *zoomRect, UmkaAPI *api)
 {
     if (zoomRect->width == 0 && zoomRect->height == 0)
         return;
 
     if (zoomRect->width < 0 || zoomRect->height < 0)
     {
-        resetTransform(plot, transform);
+        resetTransform(plot, transform, api);
         return;
     }
 
-    resizeTransform(plot, transform, zoomRect);
+    resizeTransform(plot, transform, zoomRect, api);
 }
 
 
-static void drawGraph(const Plot *plot, const ScreenTransform *transform)
+static void drawGraph(const Plot *plot, const ScreenTransform *transform, UmkaAPI *api)
 {
-    Rectangle clientRect = getClientRect(plot);
+    Rectangle clientRect = getClientRect(plot, api);
     BeginScissorMode(clientRect.x, clientRect.y, clientRect.width, clientRect.height);
 
-    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
+    for (int iSeries = 0; iSeries < api->umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         Series *series = &plot->series.data[iSeries];
         switch (series->style.kind)
         {
             case STYLE_LINE:
             {
-                if (umkaGetDynArrayLen(&series->points) > 1)
+                if (api->umkaGetDynArrayLen(&series->points) > 1)
                 {
                     Vector2 prevPt = getScreenPoint(series->points.data[0], transform);                
                     
-                    for (int iPt = 1; iPt < umkaGetDynArrayLen(&series->points); iPt++)
+                    for (int iPt = 1; iPt < api->umkaGetDynArrayLen(&series->points); iPt++)
                     {
                         Vector2 pt = getScreenPoint(series->points.data[iPt], transform); 
                         DrawLineEx(prevPt, pt, series->style.width, *(Color *)&series->style.color);
@@ -237,7 +237,7 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 
             case STYLE_SCATTER:
             {
-                for (int iPt = 0; iPt < umkaGetDynArrayLen(&series->points); iPt++)
+                for (int iPt = 0; iPt < api->umkaGetDynArrayLen(&series->points); iPt++)
                 {
                     Vector2 pt = getScreenPoint(series->points.data[iPt], transform); 
                     DrawCircleV(pt, series->style.width, *(Color *)&series->style.color);
@@ -253,7 +253,7 @@ static void drawGraph(const Plot *plot, const ScreenTransform *transform)
 }
 
 
-static void drawGrid(const Plot *plot, const ScreenTransform *transform, const Font *font, int *maxYLabelWidth)
+static void drawGrid(const Plot *plot, const ScreenTransform *transform, const Font *font, int *maxYLabelWidth, UmkaAPI *api)
 {
     if (maxYLabelWidth)
         *maxYLabelWidth = 0;
@@ -261,7 +261,7 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, const F
     if (plot->grid.xNumLines <= 0 || plot->grid.yNumLines <= 0)
         return;
 
-    const Rectangle clientRect = getClientRect(plot);
+    const Rectangle clientRect = getClientRect(plot, api);
 
     const double xSpan =  clientRect.width  / transform->xScale;
     const double ySpan = -clientRect.height / transform->yScale;
@@ -325,12 +325,12 @@ static void drawGrid(const Plot *plot, const ScreenTransform *transform, const F
 }
 
 
-static void drawTitles(const Plot *plot, const ScreenTransform *transform, const Font *font, int maxYLabelWidth)
+static void drawTitles(const Plot *plot, const ScreenTransform *transform, const Font *font, int maxYLabelWidth, UmkaAPI *api)
 {
     if (!plot->titles.visible)
         return;
 
-    Rectangle clientRect = getClientRect(plot);
+    Rectangle clientRect = getClientRect(plot, api);
 
     // Horizontal axis
     if (plot->titles.x && TextLength(plot->titles.x) > 0)
@@ -367,16 +367,16 @@ static void drawTitles(const Plot *plot, const ScreenTransform *transform, const
 }
 
 
-static void drawLegend(const Plot *plot, const Font *font)
+static void drawLegend(const Plot *plot, const Font *font, UmkaAPI *api)
 {
     if (!plot->legend.visible)
         return;    
 
     const int dashLength = 20, margin = 20;
 
-    const Rectangle legendRect = getLegendRect(plot);
+    const Rectangle legendRect = getLegendRect(plot, api);
 
-    for (int iSeries = 0; iSeries < umkaGetDynArrayLen(&plot->series); iSeries++)
+    for (int iSeries = 0; iSeries < api->umkaGetDynArrayLen(&plot->series); iSeries++)
     {
         Series *series = &plot->series.data[iSeries];
         
@@ -435,6 +435,9 @@ UMPLOT_API void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 {
     Plot *plot = (Plot *) params[0].ptrVal;
 
+    void *umka = result->ptrVal;
+    UmkaAPI *api = umkaGetAPI(umka);
+
     SetTraceLogLevel(LOG_ERROR);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(800, 600, "UmPlot");
@@ -443,12 +446,12 @@ UMPLOT_API void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
     Font gridFont = LoadFontFromMemory(".ttf", liberationFont, sizeof(liberationFont), plot->grid.fontSize, NULL, 256);
     Font titlesFont = LoadFontFromMemory(".ttf", liberationFont, sizeof(liberationFont), plot->titles.fontSize, NULL, 256);
 
-    Rectangle clientRect = getClientRect(plot);
+    Rectangle clientRect = getClientRect(plot, api);
     Rectangle zoomRect = clientRect;
     bool showZoomRect = false;
     
     ScreenTransform transform;
-    resetTransform(plot, &transform);    
+    resetTransform(plot, &transform, api);    
 
     while (!WindowShouldClose())
     {
@@ -459,8 +462,8 @@ UMPLOT_API void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
         // Resizing
         if (IsWindowResized())
         {
-            resizeTransform(plot, &transform, &clientRect);
-            clientRect = zoomRect = getClientRect(plot);
+            resizeTransform(plot, &transform, &clientRect, api);
+            clientRect = zoomRect = getClientRect(plot, api);
         }
 
         // Zooming
@@ -478,8 +481,8 @@ UMPLOT_API void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))  
         {            
-            zoomTransform(plot, &transform, &zoomRect);
-            zoomRect = getClientRect(plot);
+            zoomTransform(plot, &transform, &zoomRect, api);
+            zoomRect = getClientRect(plot, api);
             showZoomRect = false;
         }        
 
@@ -498,16 +501,16 @@ UMPLOT_API void umplot_plot(UmkaStackSlot *params, UmkaStackSlot *result)
 
         // Grid
         int maxYLabelWidth = 0;
-        drawGrid(plot, &transform, &gridFont, &maxYLabelWidth);
+        drawGrid(plot, &transform, &gridFont, &maxYLabelWidth, api);
 
         // Graph
-        drawGraph(plot, &transform);
+        drawGraph(plot, &transform, api);
 
         // Titles
-        drawTitles(plot, &transform, &titlesFont, maxYLabelWidth);
+        drawTitles(plot, &transform, &titlesFont, maxYLabelWidth, api);
 
         // Legend
-        drawLegend(plot, &gridFont);
+        drawLegend(plot, &gridFont, api);
 
         // Zoom rectangle
         if (showZoomRect)
