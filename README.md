@@ -6,7 +6,7 @@ UmPlot: A plotting library for [Umka](https://github.com/vtereshkov/umka-lang) b
 import "umplot.um"
 
 fn main() {
-    plt := umplot.init(4)
+    plt := umplot::init(4)
 
     for i := 0; i < 4; i++ {
         plt.series[i].name = sprintf("Sine wave %d", i + 1)
@@ -17,7 +17,7 @@ fn main() {
         }
     }
 
-    plt.series[1].style.kind = umplot.STYLE_SCATTER
+    plt.series[1].style.kind = .scatter
 
     plt.titles.graph = "UmPlot demo"
     plt.titles.x = "Time (seconds)"

@@ -1,15 +1,15 @@
-const (
-    STYLE_LINE* = 1
-    STYLE_SCATTER*
-)
-
 type (
     Point* = struct {
         x, y: real
     }
 
+    Kind* = enum {
+        line = 1
+        scatter
+    }
+
     Style* = struct {
-        kind: int
+        kind: Kind
         color: uint32
         width: real     
     }
@@ -54,7 +54,7 @@ fn (s: ^Series) add*(x, y: real) {
     s.points = append(s.points, Point{x, y})
 }
 
-fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
+fn init*(numSeries: int = 1, kind: Kind = .line): Plot {
     plt := Plot{series: make([]Series, numSeries)}
 
     const getDefaultColors = fn (numColors: int): []uint32 {
@@ -77,12 +77,12 @@ fn init*(numSeries: int = 1, kind: int = STYLE_LINE): Plot {
 
     for i := 0; i < numSeries; i++ {
         plt.series[i].name = ""
-        plt.series[i].style = Style{kind: kind, color: defaultColors[i], width: 3.0}
+        plt.series[i].style = {kind: kind, color: defaultColors[i], width: 3.0}
     }
 
-    plt.grid = Grid{xNumLines: 5, yNumLines: 5, color: 0xFF505050, fontSize: 12, visible: true, labelled: true}
-    plt.titles = Titles{x: "", y: "", graph: "", color: plt.grid.color, fontSize: plt.grid.fontSize, visible: true}
-    plt.legend = Legend{visible: true}
+    plt.grid = {xNumLines: 5, yNumLines: 5, color: 0xFF505050, fontSize: 12, visible: true, labelled: true}
+    plt.titles = {x: "", y: "", graph: "", color: plt.grid.color, fontSize: plt.grid.fontSize, visible: true}
+    plt.legend = {visible: true}
 
     return plt
 }
