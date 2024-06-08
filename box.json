@@ -1,0 +1,25 @@
+{
+    "name": "umplot",
+    "version": "v0.1.5",
+    "author": "Vasiliy Tereshkov <vtereshkov@mail.ru>",
+    "license": "BSD-2",
+    "description": "Plotting library",
+    "readme": "README.md",
+    "source": "https://github.com/vtereshkov/umplot",
+    "homepage": "https://github.com/vtereshkov/umplot",
+    "dependencies": [
+        "umka_api"
+    ],
+    "include": [
+        "umplot.um",
+        "umplottest.um",
+        "umplot_linux.umi",
+        "umplot_windows.umi",
+        "LICENSE",
+        "RAYLIB_LICENSE",
+        "FONT_LICENSE"
+    ],
+    "pre_build": "",
+    "run_posix": "",
+    "run_windows": ""
+}
